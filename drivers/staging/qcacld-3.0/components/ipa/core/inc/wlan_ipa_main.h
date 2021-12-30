@@ -500,6 +500,7 @@ void ipa_flush_pending_vdev_events(struct wlan_objmgr_pdev *pdev,
  * otherwise
  */
 bool ipa_is_ready(void);
+bool __ipa_is_ready(void);
 
 #else /* Not IPA_OFFLOAD */
 typedef QDF_STATUS (*wlan_ipa_softap_xmit)(qdf_nbuf_t nbuf, qdf_netdev_t dev);
