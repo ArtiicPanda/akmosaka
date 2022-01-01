@@ -67,7 +67,7 @@
 #define DELAY_TIME_MAX 300
 #define AWINIC_CALI_FILE  "/mnt/vendor/persist/factory/audio/aw_cali.bin"
 
-#ifdef CONFIG_AW882XX_DSP
+#ifndef CONFIG_AW882XX_DSP
 extern int aw_send_afe_cal_apr(uint32_t rx_port_id, uint32_t tx_port_id,
                         uint32_t param_id, void *buf, int cmd_size, bool write);
 extern int aw_send_afe_rx_module_enable(uint32_t rx_port_id, void *buf, int cmd_size);
