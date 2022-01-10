@@ -29,7 +29,7 @@ struct chacha20_state {
  * kmalloc too early in the boot cycle. For subsequent allocation requests,
  * such as per-NUMA-node DRNG instances, kmalloc will be used.
  */
-struct chacha20_state chacha20 __latent_entropy;
+struct chacha20_state __lrng_chacha20 __latent_entropy;
 
 /**
  * Update of the ChaCha20 state by either using an unused buffer part or by
@@ -41,7 +41,7 @@ struct chacha20_state chacha20 __latent_entropy;
 static void lrng_chacha20_update(struct chacha20_state *chacha20_state,
 				 __le32 *buf, u32 used_words)
 {
-	struct chacha20_block *chacha20 = &chacha20_state->block;
+	struct chacha20_block *__lrng_chacha20 = &chacha20_state->block;
 	u32 i;
 	__le32 tmp[CHACHA_BLOCK_WORDS];
 
@@ -49,21 +49,21 @@ static void lrng_chacha20_update(struct chacha20_state *chacha20_state,
 	BUILD_BUG_ON(CHACHA_BLOCK_SIZE != 2 * CHACHA_KEY_SIZE);
 
 	if (used_words > CHACHA_KEY_SIZE_WORDS) {
-		chacha20_block(&chacha20->constants[0], (u8 *)tmp);
+		chacha20_block(&__lrng_chacha20->constants[0], (u8 *)tmp);
 		for (i = 0; i < CHACHA_KEY_SIZE_WORDS; i++)
-			chacha20->key.u[i] ^= le32_to_cpu(tmp[i]);
+			__lrng_chacha20->key.u[i] ^= le32_to_cpu(tmp[i]);
 		memzero_explicit(tmp, sizeof(tmp));
 	} else {
 		for (i = 0; i < CHACHA_KEY_SIZE_WORDS; i++)
-			chacha20->key.u[i] ^= le32_to_cpu(buf[i + used_words]);
+			__lrng_chacha20->key.u[i] ^= le32_to_cpu(buf[i + used_words]);
 	}
 
 	/* Deterministic increment of nonce as required in RFC 7539 chapter 4 */
-	chacha20->nonce[0]++;
-	if (chacha20->nonce[0] == 0) {
-		chacha20->nonce[1]++;
-		if (chacha20->nonce[1] == 0)
-			chacha20->nonce[2]++;
+	__lrng_chacha20->nonce[0]++;
+	if (__lrng_chacha20->nonce[0] == 0) {
+		__lrng_chacha20->nonce[1]++;
+		if (__lrng_chacha20->nonce[1] == 0)
+			__lrng_chacha20->nonce[2]++;
 	}
 
 	/* Leave counter untouched as it is start value is undefined in RFC */
@@ -79,13 +79,13 @@ static void lrng_chacha20_update(struct chacha20_state *chacha20_state,
 static int lrng_cc20_drng_seed_helper(void *drng, const u8 *inbuf, u32 inbuflen)
 {
 	struct chacha20_state *chacha20_state = (struct chacha20_state *)drng;
-	struct chacha20_block *chacha20 = &chacha20_state->block;
+	struct chacha20_block *__lrng_chacha20 = &chacha20_state->block;
 
 	while (inbuflen) {
 		u32 i, todo = min_t(u32, inbuflen, CHACHA_KEY_SIZE);
 
 		for (i = 0; i < todo; i++)
-			chacha20->key.b[i] ^= inbuf[i];
+			__lrng_chacha20->key.b[i] ^= inbuf[i];
 
 		/* Break potential dependencies between the inbuf key blocks */
 		lrng_chacha20_update(chacha20_state, NULL,
@@ -113,19 +113,19 @@ static int lrng_cc20_drng_seed_helper(void *drng, const u8 *inbuf, u32 inbuflen)
 static int lrng_cc20_drng_generate_helper(void *drng, u8 *outbuf, u32 outbuflen)
 {
 	struct chacha20_state *chacha20_state = (struct chacha20_state *)drng;
-	struct chacha20_block *chacha20 = &chacha20_state->block;
+	struct chacha20_block *__lrng_chacha20 = &chacha20_state->block;
 	__le32 aligned_buf[CHACHA_BLOCK_WORDS];
 	u32 ret = outbuflen, used = CHACHA_BLOCK_WORDS;
 	int zeroize_buf = 0;
 
 	while (outbuflen >= CHACHA_BLOCK_SIZE) {
-		chacha20_block(&chacha20->constants[0], outbuf);
+		chacha20_block(&__lrng_chacha20->constants[0], outbuf);
 		outbuf += CHACHA_BLOCK_SIZE;
 		outbuflen -= CHACHA_BLOCK_SIZE;
 	}
 
 	if (outbuflen) {
-		chacha20_block(&chacha20->constants[0], (u8 *)aligned_buf);
+		chacha20_block(&__lrng_chacha20->constants[0], (u8 *)aligned_buf);
 		memcpy(outbuf, aligned_buf, outbuflen);
 		used = ((outbuflen + sizeof(aligned_buf[0]) - 1) /
 			sizeof(aligned_buf[0]));

@@ -1,3 +1,4 @@
+
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
  * LRNG ChaCha20 definitions
@@ -21,5 +22,5 @@ struct chacha20_block {
 
 static inline void lrng_cc20_init_rfc7539(struct chacha20_block *chacha20)
 {
-	chacha_init_consts(chacha20->constants);
+//	chacha_init_consts(chacha20->constants);
 }
