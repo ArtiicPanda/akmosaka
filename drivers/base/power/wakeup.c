@@ -935,9 +935,14 @@ void pm_print_active_wakeup_sources(void)
 		if (ws->active) {
 			pm_pr_dbg("active wakeup source: %s\n", ws->name);
 			active = 1;
-#ifdef CONFIG_BOEFFLA_WL_BLOCKER
-			if (!check_for_block(ws))	// AP: check if wakelock is on wakelock blocker list
-#endif
+
+		#ifdef CONFIG_BOEFFLA_WL_BLOCKER
+			if (check_for_block(ws)) {
+				printk("blocking: ", (ws), "\n");
+				return;
+			}	// AP: check if wakelock is on wakelock blocker list
+		#endif
+
 		} else if (!active &&
 			   (!last_activity_ws ||
 			    ktime_to_ns(ws->last_time) >
