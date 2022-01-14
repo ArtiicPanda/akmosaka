@@ -22,43 +22,19 @@ static DEFINE_MUTEX(dragrace_mutex);
 
 static bool screen_on = true;
 
-extern void update_screen_status(bool on)
+void dragrace_set_screen_state(bool on)
 {
-	screen_on = on;
+        if (on) {
+                if (screen_on)
+                        return;
+                screen_on = true;
+        } else {
+                if (!screen_on)
+                        return;
+                screen_on = false;
+        }
 }
 
-static int msm_drm_notifier_callback(struct notifier_block *self,
-				unsigned long event, void *data)
-{
-	printk("Display notifier callback\n");
-	struct msm_drm_notifier *evdata = data;
-
-	int *blank;
-	if (event != MSM_DRM_EVENT_BLANK && event != MSM_DRM_EARLY_EVENT_BLANK)
-		printk("Non compatible event\n");
-		goto out;
-
-	if (!evdata || !evdata->data || evdata->id != MSM_DRM_PRIMARY_DISPLAY)
-		printk("Not primary displayx\n");
-		goto out;
-
-	blank = evdata->data;
-	switch (*blank) {
-	case MSM_DRM_BLANK_POWERDOWN:
-		update_screen_status(false);
-		break;
-	case MSM_DRM_BLANK_UNBLANK:
-		update_screen_status(true);
-		break;
-	}
-
-out:
-	return NOTIFY_OK;
-}
-
-static struct notifier_block fb_notifier_block = {
-	.notifier_call = msm_drm_notifier_callback,
-};
 
 static int cpufreq_set(struct cpufreq_policy *policy, unsigned int freq)
 {
@@ -72,10 +48,19 @@ static int cpufreq_set(struct cpufreq_policy *policy, unsigned int freq)
 	if (!per_cpu(cpu_is_managed, policy->cpu))
 		goto err;
 
-	ret = __cpufreq_driver_target(policy, freq, CPUFREQ_RELATION_L);
+	if (screen_on) {
+		printk("Setting freq high\n");
+		ret = __cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_H);
+	}
+	else {
+		printk("Setting freq low\n");
+		ret = __cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_L);
+	}
+
  err:
 	printk("error setting cpu freq\n");
 	mutex_unlock(&dragrace_mutex);
+
 	return ret;
 }
 
@@ -87,7 +72,6 @@ static ssize_t show_speed(struct cpufreq_policy *policy, char *buf)
 static int cpufreq_dragrace_policy_init(struct cpufreq_policy *policy)
 {
 	printk("DRAGRACE: init dragrace scheduler\n");
-	msm_drm_register_client(&fb_notifier_block);
 	unsigned int *setspeed;
 
 	setspeed = kzalloc(sizeof(*setspeed), GFP_KERNEL);
@@ -141,20 +125,14 @@ static void cpufreq_dragrace_policy_limits(struct cpufreq_policy *policy)
 	pr_debug("limit event for cpu %u: %u - %u kHz, currently %u kHz, last set to %u kHz\n",
 		 policy->cpu, policy->min, policy->max, policy->cur, *setspeed);
 
-	// if (policy->max < *setspeed)
 	if (screen_on) {
 		printk("Setting freq high\n");
 		__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_H);		
 	}
-	// else if (policy->min > *setspeed)
-	// {
-	// __cpufreq_driver_target(policy, policy->min, CPUFREQ_RELATION_L);
-	// }
 	else {
 		printk("Setting freq low\n");
 		__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_L);
 	}
-
 
 	mutex_unlock(&dragrace_mutex);
 }
@@ -173,13 +151,11 @@ static struct cpufreq_governor cpufreq_gov_dragrace = {
 
 static int __init cpufreq_gov_dragrace_init(void)
 {
-	msm_drm_register_client(&fb_notifier_block);
 	return cpufreq_register_governor(&cpufreq_gov_dragrace);
 }
 
 static void __exit cpufreq_gov_dragrace_exit(void)
 {
-	msm_drm_unregister_client(&fb_notifier_block);
 	cpufreq_unregister_governor(&cpufreq_gov_dragrace);
 }
 

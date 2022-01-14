@@ -17,6 +17,8 @@
 
 #define MAX_EVENTS 30
 
+extern void dragrace_set_screen_state(bool on);
+
 static int try_get_ctrl_for_instance(struct msm_vidc_inst *inst,
 	struct v4l2_ctrl *ctrl);
 
@@ -1655,6 +1657,9 @@ fail_bufq_capture:
 	DEINIT_MSM_VIDC_LIST(&inst->window_data);
 	DEINIT_MSM_VIDC_LIST(&inst->timestamps);
 
+	//msm_vidc_update_screen_status(true);
+	dragrace_set_screen_state(true);
+
 err_invalid_sid:
 	put_sid(inst->sid);
 	kfree(inst);
@@ -1795,6 +1800,9 @@ int msm_vidc_destroy(struct msm_vidc_inst *inst)
 			inst);
 	put_sid(inst->sid);
 	kfree(inst);
+
+//	msm_vidc_update_screen_status(false);
+	dragrace_set_screen_state(true);
 	return 0;
 }
 
